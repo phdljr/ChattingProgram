@@ -15,6 +15,7 @@ import java.util.Vector;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -39,6 +40,7 @@ public class Server extends JFrame implements ActionListener {
 	private Socket socket;
 	private int port;
 	private Vector<UserInfo> user_vc = new Vector<UserInfo>();
+	private Vector room_vc = new Vector();
 	
 	private StringTokenizer st;
 
@@ -51,7 +53,8 @@ public class Server extends JFrame implements ActionListener {
 		try {
 			server_socket = new ServerSocket(port);
 		} catch (IOException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "이미 사용중인 포트", "알림", JOptionPane.ERROR_MESSAGE);
 		}
 
 		if (server_socket != null) { // 정상 열림
@@ -76,7 +79,9 @@ public class Server extends JFrame implements ActionListener {
 						user.start(); // 각각의 유저 스레드 실행
 
 					} catch (IOException e) {
-						e.printStackTrace();
+						//e.printStackTrace();
+						JOptionPane.showMessageDialog(null, "accept 에러 방생", "알림", JOptionPane.ERROR_MESSAGE);
+						break;
 					}
 				}
 			}
@@ -147,6 +152,8 @@ public class Server extends JFrame implements ActionListener {
 
 		private Socket user_socket;
 		private String nickname = "";
+		
+		private boolean room_check = true;
 
 		UserInfo(Socket socket) {
 			this.user_socket = socket;
@@ -160,8 +167,18 @@ public class Server extends JFrame implements ActionListener {
 					textArea.append(nickname + " : 사용자로부터 들어온 메세지 : " + msg + "\n");
 					inMessage(msg);
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					//e.printStackTrace();
+					//JOptionPane.showMessageDialog(null, "사용자 접속 끊어짐", "알림", JOptionPane.ERROR_MESSAGE);
+					textArea.append(nickname+": 사용자 접속 끊어짐\n");
+					try {
+						dos.close();
+						dis.close();
+						user_socket.close();
+						user_vc.remove(this);
+						broadcast("User_out/"+nickname);
+						broadcast("user_list_update/ ");
+					}catch(IOException e1) {}
+					break;
 				}
 			}
 		}
@@ -190,6 +207,52 @@ public class Server extends JFrame implements ActionListener {
 					}
 				}
 			}
+			else if(protocol.equals("CreateRoom")) {
+				//1. 현재 같은 방이 존재하는지 확인
+				for(int i=0;i<room_vc.size();i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					
+					if(r.room_name.equals(message)) { //이미 존재할 때
+						sendMessage("CreateRoomFail/ok");
+						room_check = false;
+						break;
+					}
+				}
+				
+				if(room_check) { //방을 만들 수 있을 때
+					RoomInfo new_room = new RoomInfo(message, this);
+					room_vc.add(new_room); //전체 방 벡터에 방을 추가
+					sendMessage("CreateRoom/"+message); //방 이름
+					
+					broadcast("New_Room/"+message);
+				}
+				
+				room_check = true;
+			}
+			else if(protocol.equals("Chatting")) {
+				String msg_text = st.nextToken();
+				
+				for(int i=0;i<room_vc.size();i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					
+					if(r.room_name.equals(message)) {
+						r.broadcastRoom("Chatting/"+nickname+"/"+msg_text);
+					}
+				}
+			}
+			else if(protocol.equals("JoinRoom")) {
+				for(int i=0;i<room_vc.size();i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					if(r.room_name.equals(message)) {
+						//새로운 사용자를 알린다
+						r.broadcastRoom("Chatting/알림/*******"+nickname+"님이 입장하셨습니다*******");
+						
+						//사용자 추가
+						r.addUser(this);
+						sendMessage("JoinRoom/"+message);
+					}
+				}
+			}
 		}
 
 		private void userNetwork() {
@@ -211,16 +274,24 @@ public class Server extends JFrame implements ActionListener {
 				//자신에게 기존 사용자를 받아오는 부분
 				for(int i=0;i<user_vc.size();i++) {
 					UserInfo u = user_vc.elementAt(i);
-					
 					sendMessage("OldUser/" + u.nickname);
 				}
+				
+				//자신에게 기존 방 목록을 받아오는 부분
+				for(int i=0;i<room_vc.size();i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					sendMessage("OldRoom/"+r.room_name);
+				}
+				
+				sendMessage("room_list_update/ ");
 				
 				user_vc.add(this); //사용자에게 알린 후 Vector에 추가.
 				
 				broadcast("user_list_update/ ");
 
 			} catch (IOException e) {
-				e.printStackTrace();
+				//e.printStackTrace();
+				JOptionPane.showMessageDialog(null, "Stream설정 에러", "알림", JOptionPane.ERROR_MESSAGE);
 			}
 		}
 
@@ -240,5 +311,26 @@ public class Server extends JFrame implements ActionListener {
 			}
 		}
 	}
-
+	
+	class RoomInfo{
+		private String room_name;
+		private Vector room_user_vc = new Vector();
+		
+		RoomInfo(String str, UserInfo u){
+			this.room_name = str;
+			this.room_user_vc.add(u);
+		}
+		
+		public void broadcastRoom(String str){//현재 방의 모든 사람에게 알린다
+			for(int i=0;i<room_user_vc.size();i++) {
+				UserInfo u = (UserInfo)room_user_vc.elementAt(i);
+				
+				u.sendMessage(str);
+			}
+		}
+		
+		private void addUser(UserInfo u) {
+			this.room_user_vc.add(u);
+		}
+	}
 }

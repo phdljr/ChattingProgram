@@ -2,6 +2,8 @@ package client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -63,8 +65,10 @@ public class Client extends JFrame implements ActionListener {
 
 	// 그외 변수들
 	private Vector<String> userList = new Vector<String>();
-	private Vector roomList = new Vector();
+	private Vector<String> roomList = new Vector();
 	private StringTokenizer st;
+
+	private String my_room; // 내가 있는 방
 
 	Client() {
 		login_init();
@@ -174,9 +178,11 @@ public class Client extends JFrame implements ActionListener {
 			}
 
 		} catch (UnknownHostException e) { // 호스트를 찾을 수 없음
-			e.printStackTrace();
+			//e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "연결 실패", "알림", JOptionPane.ERROR_MESSAGE);
 		} catch (IOException e) { // 스트림 에러
-			e.printStackTrace();
+			//e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "연결 실패", "알림", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
@@ -189,7 +195,8 @@ public class Client extends JFrame implements ActionListener {
 			os = socket.getOutputStream();
 			dos = new DataOutputStream(os);
 		} catch (IOException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "연결 실패", "알림", JOptionPane.ERROR_MESSAGE);
 		} // Stream 설정 끝
 
 		sendMessage(id);
@@ -210,7 +217,18 @@ public class Client extends JFrame implements ActionListener {
 						inMessage(msg);
 
 					} catch (IOException e) {
-						e.printStackTrace();
+						//e.printStackTrace();
+						try {
+							os.close();
+							is.close();
+							dos.close();
+							dis.close();
+							socket.close();
+							JOptionPane.showMessageDialog(null, "서버와 접속 끊어짐", "알림", JOptionPane.ERROR_MESSAGE);
+						}catch (IOException e1) {
+							
+						}
+						break;
 					}
 				}
 			}
@@ -232,16 +250,37 @@ public class Client extends JFrame implements ActionListener {
 			userList.add(message);
 		} else if (protocol.equals("OldUser")) {
 			userList.add(message);
-		} else if(protocol.equals("Note")) {
+		} else if (protocol.equals("Note")) {
 			String note = st.nextToken();
-			
-			System.out.println(message+" 사용자로부터 온 쪽지 : "+ note);
-			
-			JOptionPane.showMessageDialog(null, note, message+"님으로 부터 온 쪽지", JOptionPane.CLOSED_OPTION);
-		}else if(protocol.equals("user_list_update")) { //Swing의 JList 오류때문에 생긴 프로토콜
-			//user_list.updateUI() //잘 안됨
+
+			System.out.println(message + " 사용자로부터 온 쪽지 : " + note);
+
+			JOptionPane.showMessageDialog(null, note, message + "님으로 부터 온 쪽지", JOptionPane.CLOSED_OPTION);
+		} else if (protocol.equals("user_list_update")) { // Swing의 JList 오류때문에 생긴 프로토콜
+			// user_list.updateUI() //잘 안됨
 			user_list.setListData(userList);
+		} else if (protocol.equals("CreateRoom")) { // 방을 만들었을 때
+			my_room = message;
+		} else if (protocol.equals("CreateRoomFail")) {// 방 만들기 실패
+			JOptionPane.showMessageDialog(null, "방 만들기 실패", "알림", JOptionPane.ERROR_MESSAGE);
+		} else if (protocol.equals("New_Room")) {// 방 만들기 실패
+			roomList.add(message);
+			room_list.setListData(roomList);
+		} else if (protocol.equals("Chatting")) {// 방 만들기 실패
+			String msg = st.nextToken();
+
+			chat_area.append(message + ":" + msg + "\n");
+		} else if (protocol.equals("OldRoom")) {// 방 만들기 실패
+			roomList.add(message);
+		} else if (protocol.equals("room_list_update")) {// 방 만들기 실패
+			room_list.setListData(roomList);
+		} else if (protocol.equals("JoinRoom")) {// 방 만들기 실패
+			my_room = message;
+			JOptionPane.showMessageDialog(null, "채팅방에 입장했습니다.", "알림", JOptionPane.INFORMATION_MESSAGE);
+		} else if(protocol.equals("User_out")) {
+			userList.remove(message);
 		}
+		
 	}
 
 	private void sendMessage(String str) { // 서버에게 메세지를 보내는 부분
@@ -283,12 +322,26 @@ public class Client extends JFrame implements ActionListener {
 			System.out.println("받는 사람: " + user + "| 보낼 내용: " + note);
 		} else if (e.getSource() == joinroom_btn) {
 			System.out.println("방 참여 버튼 클릭");
+			
+			String join_room = (String)room_list.getSelectedValue();
+			
+			sendMessage("JoinRoom/"+join_room);
+			
 		} else if (e.getSource() == createroom_btn) {
 			System.out.println("방 만들기 버튼 클릭");
+
+			String room_name = JOptionPane.showInputDialog("방이름");
+
+			if (room_name != null) {
+				sendMessage("CreateRoom/" + room_name);
+			}
+
 		} else if (e.getSource() == send_btn) {
 			System.out.println("전송 버튼 클릭");
-			sendMessage("임시테스트.");
+
+			sendMessage("Chatting/" + my_room + "/" + message_tf.getText().trim());
 		}
+
 	}
 
 	public static void main(String[] args) {
