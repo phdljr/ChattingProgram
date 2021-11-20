@@ -48,9 +48,10 @@ public class Client extends JFrame implements ActionListener{
 	private Socket socket;
 	private String ip = "";
 	private int port;
-	private InputStream is;
-	private OutputStream os;
-	private DataInputStream dis;
+	private String id = "";
+	private InputStream is; //서버로부터 메시지를 받는 스트림
+	private OutputStream os; //서버로 메시지를 보내는 스트림
+	private DataInputStream dis; //위의 바이트 스트림을 편하게 사용하기 위해 DataStream을 사용
 	private DataOutputStream dos;
 	
 	Client(){
@@ -167,30 +168,33 @@ public class Client extends JFrame implements ActionListener{
 	
 	//서버의 스레드는 하나이기 때문에 동시에 여러 클라이언트와 통신 못함
 	private void connection() {//실질적인 메소드
-		
 		try {
-		is = socket.getInputStream();
-		dis = new DataInputStream(is);
-		
-		os = socket.getOutputStream();
-		dos = new DataOutputStream(os);
-		
+			is = socket.getInputStream();
+			dis = new DataInputStream(is);
+			
+			os = socket.getOutputStream();
+			dos = new DataOutputStream(os);
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
+		} //Stream 설정 끝
 		
-		sendMessage("클라이언트 접속합니다.");
+		sendMessage(id);
 		
-		String msg = "";
-		
-		try {
-			msg = dis.readUTF();
-			System.out.println("서버로부터 들어온 메세지 : " + msg);
-			//sendMessage("~~~~~~");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		//처음 접속 시 아이디
+		Thread th = new Thread(new Runnable() {
+			public void run() {
+				while(true) {
+					try {
+						String msg = dis.readUTF();
+						
+						System.out.println("서버로부터 수신된 메세지 : "+msg);
+						
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		});
 	}
 	
 	private void sendMessage(String str) { //서버에게 메세지를 보내는 부분
@@ -218,6 +222,7 @@ public class Client extends JFrame implements ActionListener{
 			
 			ip = ip_tf.getText().trim();
 			port = Integer.parseInt(port_tf.getText().trim());
+			id = id_tf.getText().trim();
 			
 			network();
 		}
@@ -232,6 +237,7 @@ public class Client extends JFrame implements ActionListener{
 		}
 		else if(e.getSource() == send_btn) {
 			System.out.println("전송 버튼 클릭");
+			sendMessage("임시테스트.");
 		}
 	}
 	

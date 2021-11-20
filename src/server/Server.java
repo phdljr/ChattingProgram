@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Vector;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -31,11 +32,7 @@ public class Server extends JFrame implements ActionListener {
 	private ServerSocket server_socket;
 	private Socket socket;
 	private int port;
-
-	private InputStream is;
-	private OutputStream os;
-	private DataInputStream dis;
-	private DataOutputStream dos;
+	private Vector user_vc = new Vector();
 
 	Server() {
 		init();
@@ -61,26 +58,18 @@ public class Server extends JFrame implements ActionListener {
 		Thread th = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				try {
-					textArea.append("사용자 접속 대기중\n");
-					socket = server_socket.accept(); // 사용자 접속 무한 대기
+				while (true) {
+					try {
+						textArea.append("사용자 접속 대기중\n");
+						socket = server_socket.accept(); // 사용자 접속 무한 대기
+						textArea.append("사용자 접속\n");
+						
+						UserInfo user = new UserInfo(socket);
+						user.start(); //각각의 유저 스레드 실행
 
-					is = socket.getInputStream();
-					dis = new DataInputStream(is);
-
-					os = socket.getOutputStream();
-					dos = new DataOutputStream(os);
-
-					textArea.append("사용자 접속\n");
-
-					String msg = "";
-					msg = dis.readUTF(); // 사용자로부터 들어오는 메세지
-
-					textArea.append(msg);
-					
-					dos.writeUTF("접속 확인");
-				} catch (IOException e) {
-					e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		});
@@ -139,6 +128,49 @@ public class Server extends JFrame implements ActionListener {
 			serverStart(); // 서버 시작
 		} else if (e.getSource() == stop_btn) {
 			System.out.println("중지 버튼 클릭");
+		}
+	}
+	
+	class UserInfo extends Thread{
+		private OutputStream os;
+		private InputStream is;
+		private DataOutputStream dos;
+		private DataInputStream dis;
+		
+		private Socket user_socket;
+		private String nickname = "";
+		
+		UserInfo(Socket socket){
+			this.user_socket = socket;
+			userNetwork();
+		}
+		
+		public void run() { //스레드 실행 메소드
+			while(true) {
+				try {
+					String msg = dis.readUTF();
+					textArea.append(nickname+" : 사용자로부터 들어온 메세지 : "+ msg + "\n");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		private void userNetwork() {
+			try {
+				is = user_socket.getInputStream();
+				dis = new DataInputStream(is);
+				
+				os = user_socket.getOutputStream();
+				dos = new DataOutputStream(os);
+				
+				nickname = dis.readUTF(); //사용자의 닉넹미 받기
+				textArea.append(nickname + " : 사용자 접속\n");
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
