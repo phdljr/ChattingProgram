@@ -2,6 +2,9 @@ package client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -19,7 +22,7 @@ public class Client extends JFrame implements ActionListener{
 	//login
 	private JFrame loign_gui = new JFrame();
 	private JPanel login_pane;
-	private JTextField ip_ft;
+	private JTextField ip_tf;
 	private JTextField port_tf;
 	private JTextField id_tf;
 	private JButton login_btn = new JButton("\uB85C\uADF8\uC778");
@@ -36,6 +39,11 @@ public class Client extends JFrame implements ActionListener{
 	private JList room_list = new JList();
 	
 	private JTextArea chat_area = new JTextArea();
+	
+	//네트워크를 위한 자원 변수
+	private Socket socket;
+	private String ip = "";
+	private int port;
 	
 	Client(){
 		login_init();
@@ -93,14 +101,6 @@ public class Client extends JFrame implements ActionListener{
 		setVisible(true);
 	}
 	
-	private void start() {
-		login_btn.addActionListener(this);
-		notesend_btn.addActionListener(this);
-		joinroom_btn.addActionListener(this);
-		createroom_btn.addActionListener(this);
-		send_btn.addActionListener(this);
-	}
-	
 	private void login_init() {
 		loign_gui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		loign_gui.setBounds(100, 100, 340, 430);
@@ -121,10 +121,10 @@ public class Client extends JFrame implements ActionListener{
 		lblNewLabel_1_1.setBounds(42, 297, 57, 15);
 		login_pane.add(lblNewLabel_1_1);
 		
-		ip_ft = new JTextField();
-		ip_ft.setBounds(148, 181, 116, 21);
-		login_pane.add(ip_ft);
-		ip_ft.setColumns(10);
+		ip_tf = new JTextField();
+		ip_tf.setBounds(148, 181, 116, 21);
+		login_pane.add(ip_tf);
+		ip_tf.setColumns(10);
 		
 		port_tf = new JTextField();
 		port_tf.setBounds(148, 239, 116, 21);
@@ -142,15 +142,34 @@ public class Client extends JFrame implements ActionListener{
 		loign_gui.setVisible(true);
 	}
 
-	public static void main(String[] args) {
-		new Client();
+	private void network() {
+		try {
+			socket = new Socket(ip, port);
+		} catch (UnknownHostException e) { //호스트를 찾을 수 없음
+			e.printStackTrace();
+		} catch (IOException e) { //스트림 에러
+			e.printStackTrace();
+		}
 	}
-
+	
+	private void start() {
+		login_btn.addActionListener(this);
+		notesend_btn.addActionListener(this);
+		joinroom_btn.addActionListener(this);
+		createroom_btn.addActionListener(this);
+		send_btn.addActionListener(this);
+	}
+	
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub
 		if(e.getSource() == login_btn) {
 			System.out.println("로그인 버튼 클릭");
+			
+			ip = ip_tf.getText().trim();
+			port = Integer.parseInt(port_tf.getText().trim());
+			
+			network();
 		}
 		else if(e.getSource() == notesend_btn) {
 			System.out.println("쪽지 보내기 클릭");
@@ -165,5 +184,9 @@ public class Client extends JFrame implements ActionListener{
 			System.out.println("전송 버튼 클릭");
 		}
 	}
-
+	
+	public static void main(String[] args) {
+		new Client();
+	}
+	
 }

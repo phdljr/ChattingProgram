@@ -1,6 +1,9 @@
 package server;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -19,9 +22,47 @@ public class Server extends JFrame implements ActionListener{
 	private JButton start_btn = new JButton("\uC11C\uBC84 \uC2E4\uD589");
 	private JButton stop_btn = new JButton("\uC11C\uBC84 \uC911\uC9C0");
 	
+	//네트워크
+	private ServerSocket server_socket;
+	private Socket socket;
+	
+	private int port;
+	
 	Server(){
 		init();
 		start();
+	}
+	
+	private void serverStart() {
+		try {
+			server_socket = new ServerSocket(port);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		if(server_socket != null) { //정상 열림
+			Connection();
+		}
+	}
+	
+	private void Connection() {
+		
+		//1가지의 스레드에서는 1가지의 일만 처리할 수 있다.
+		
+		Thread th = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					textArea.append("사용자 접속 대기중\n");
+					socket = server_socket.accept(); //사용자 접속 무한 대기
+					textArea.append("사용자 접속");	
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+		
+		th.start();
 	}
 	
 	private void start() {
@@ -69,6 +110,10 @@ public class Server extends JFrame implements ActionListener{
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() == start_btn) {
 			System.out.println("스타트 버튼 클릭");
+			
+			port = Integer.parseInt(port_tf.getText().trim());
+			
+			serverStart(); //서버 시작
 		}
 		else if(e.getSource() == stop_btn) {
 			System.out.println("중지 버튼 클릭");
