@@ -2,7 +2,11 @@ package client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
@@ -44,6 +48,10 @@ public class Client extends JFrame implements ActionListener{
 	private Socket socket;
 	private String ip = "";
 	private int port;
+	private InputStream is;
+	private OutputStream os;
+	private DataInputStream dis;
+	private DataOutputStream dos;
 	
 	Client(){
 		login_init();
@@ -145,9 +153,51 @@ public class Client extends JFrame implements ActionListener{
 	private void network() {
 		try {
 			socket = new Socket(ip, port);
+			
+			if(socket != null) {//정상 소캣 연결
+				connection();
+			}
+			
 		} catch (UnknownHostException e) { //호스트를 찾을 수 없음
 			e.printStackTrace();
 		} catch (IOException e) { //스트림 에러
+			e.printStackTrace();
+		}
+	}
+	
+	//서버의 스레드는 하나이기 때문에 동시에 여러 클라이언트와 통신 못함
+	private void connection() {//실질적인 메소드
+		
+		try {
+		is = socket.getInputStream();
+		dis = new DataInputStream(is);
+		
+		os = socket.getOutputStream();
+		dos = new DataOutputStream(os);
+		
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		sendMessage("클라이언트 접속합니다.");
+		
+		String msg = "";
+		
+		try {
+			msg = dis.readUTF();
+			System.out.println("서버로부터 들어온 메세지 : " + msg);
+			//sendMessage("~~~~~~");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	private void sendMessage(String str) { //서버에게 메세지를 보내는 부분
+		try {
+			dos.writeUTF(str); //서버로 메세지 보내기
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
