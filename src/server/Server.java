@@ -78,9 +78,9 @@ public class Server extends JFrame implements ActionListener {
 						UserInfo user = new UserInfo(socket);
 						user.start(); // 각각의 유저 스레드 실행
 
-					} catch (IOException e) {
+					} catch (IOException e) { //서버 종료 시
 						//e.printStackTrace();
-						JOptionPane.showMessageDialog(null, "accept 에러 방생", "알림", JOptionPane.ERROR_MESSAGE);
+						//JOptionPane.showMessageDialog(null, "accept 에러 방생", "알림", JOptionPane.ERROR_MESSAGE);
 						break;
 					}
 				}
@@ -123,7 +123,10 @@ public class Server extends JFrame implements ActionListener {
 		contentPane.add(scrollPane);
 
 		scrollPane.setViewportView(textArea);
-
+		textArea.setEditable(false);
+		
+		stop_btn.setEnabled(false);
+		
 		setVisible(true);
 	}
 
@@ -139,8 +142,23 @@ public class Server extends JFrame implements ActionListener {
 			port = Integer.parseInt(port_tf.getText().trim());
 
 			serverStart(); // 서버 시작
+			
+			start_btn.setEnabled(false);
+			port_tf.setEditable(false);
+			stop_btn.setEnabled(true);
 		} else if (e.getSource() == stop_btn) {
 			System.out.println("중지 버튼 클릭");
+			
+			stop_btn.setEnabled(false);
+			start_btn.setEnabled(true);
+			port_tf.setEditable(true);
+			try {
+				server_socket.close();
+				user_vc.removeAllElements();
+				room_vc.removeAllElements();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
 		}
 	}
 

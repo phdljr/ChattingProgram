@@ -2,6 +2,8 @@ package client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.DataInputStream;
@@ -26,14 +28,14 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-public class Client extends JFrame implements ActionListener {
+public class Client extends JFrame implements ActionListener, KeyListener {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 	// login
-	private JFrame loign_gui = new JFrame();
+	private JFrame login_gui = new JFrame();
 	private JPanel login_pane;
 	private JTextField ip_tf;
 	private JTextField port_tf;
@@ -116,24 +118,27 @@ public class Client extends JFrame implements ActionListener {
 		contentPane.add(scrollPane);
 
 		scrollPane.setViewportView(chat_area);
+		chat_area.setEditable(false);
 
 		message_tf = new JTextField();
 		message_tf.setBounds(125, 423, 436, 21);
 		contentPane.add(message_tf);
 		message_tf.setColumns(10);
-
+		message_tf.setEnabled(false);
+		
 		send_btn.setBounds(573, 422, 97, 23);
 		contentPane.add(send_btn);
-
-		setVisible(true);
+		send_btn.setEnabled(false);
+	
+		setVisible(false);
 	}
 
 	private void login_init() {
-		loign_gui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		loign_gui.setBounds(100, 100, 340, 430);
+		login_gui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		login_gui.setBounds(100, 100, 340, 430);
 		login_pane = new JPanel();
 		login_pane.setBorder(new EmptyBorder(5, 5, 5, 5));
-		loign_gui.setContentPane(login_pane);
+		login_gui.setContentPane(login_pane);
 		login_pane.setLayout(null);
 
 		JLabel lblNewLabel = new JLabel("Server IP");
@@ -166,7 +171,7 @@ public class Client extends JFrame implements ActionListener {
 		login_btn.setBounds(42, 340, 222, 23);
 		login_pane.add(login_btn);
 
-		loign_gui.setVisible(true);
+		login_gui.setVisible(true);
 	}
 
 	private void network() {
@@ -198,6 +203,9 @@ public class Client extends JFrame implements ActionListener {
 			//e.printStackTrace();
 			JOptionPane.showMessageDialog(null, "연결 실패", "알림", JOptionPane.ERROR_MESSAGE);
 		} // Stream 설정 끝
+		
+		this.setVisible(true); //main ui 표시
+		this.login_gui.setVisible(false);
 
 		sendMessage(id);
 
@@ -261,6 +269,10 @@ public class Client extends JFrame implements ActionListener {
 			user_list.setListData(userList);
 		} else if (protocol.equals("CreateRoom")) { // 방을 만들었을 때
 			my_room = message;
+			message_tf.setEnabled(true);
+			send_btn.setEnabled(true);
+			joinroom_btn.setEnabled(false);
+			createroom_btn.setEnabled(false);
 		} else if (protocol.equals("CreateRoomFail")) {// 방 만들기 실패
 			JOptionPane.showMessageDialog(null, "방 만들기 실패", "알림", JOptionPane.ERROR_MESSAGE);
 		} else if (protocol.equals("New_Room")) {// 방 만들기 실패
@@ -276,6 +288,10 @@ public class Client extends JFrame implements ActionListener {
 			room_list.setListData(roomList);
 		} else if (protocol.equals("JoinRoom")) {// 방 만들기 실패
 			my_room = message;
+			message_tf.setEnabled(true);
+			send_btn.setEnabled(true);
+			joinroom_btn.setEnabled(false);
+			createroom_btn.setEnabled(false);
 			JOptionPane.showMessageDialog(null, "채팅방에 입장했습니다.", "알림", JOptionPane.INFORMATION_MESSAGE);
 		} else if(protocol.equals("User_out")) {
 			userList.remove(message);
@@ -287,7 +303,6 @@ public class Client extends JFrame implements ActionListener {
 		try {
 			dos.writeUTF(str); // 서버로 메세지 보내기
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -298,18 +313,33 @@ public class Client extends JFrame implements ActionListener {
 		joinroom_btn.addActionListener(this);
 		createroom_btn.addActionListener(this);
 		send_btn.addActionListener(this);
+		message_tf.addKeyListener(this);
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == login_btn) {
 			System.out.println("로그인 버튼 클릭");
-
-			ip = ip_tf.getText().trim();
-			port = Integer.parseInt(port_tf.getText().trim());
-			id = id_tf.getText().trim();
-
-			network();
+			
+			if(ip_tf.getText().length()==0) {
+				ip_tf.setText("IP를 입력해주세요.");
+				ip_tf.requestFocus();
+			}
+			else if(port_tf.getText().length() == 00) {
+				port_tf.setText("port번호를 입력해주세요.");
+				port_tf.requestFocus();
+			}
+			else if(id_tf.getText().length() == 00) {
+				id_tf.setText("ID를 입력해주세요.");
+				id_tf.requestFocus();
+			}
+			else {
+				ip = ip_tf.getText().trim();
+				port = Integer.parseInt(port_tf.getText().trim());
+				id = id_tf.getText().trim();
+				
+				network();
+			}
 		} else if (e.getSource() == notesend_btn) {
 			System.out.println("쪽지 보내기 클릭");
 
@@ -346,6 +376,25 @@ public class Client extends JFrame implements ActionListener {
 
 	public static void main(String[] args) {
 		new Client();
+	}
+
+	@Override
+	public void keyTyped(KeyEvent e) {
+		
+	}
+
+	@Override
+	public void keyPressed(KeyEvent e) {
+		
+	}
+
+	@Override
+	public void keyReleased(KeyEvent e) {
+		if(e.getKeyCode() == 10) { //엔터키
+			sendMessage("Chatting/" + my_room + "/" + message_tf.getText().trim());
+			message_tf.setText("");
+			message_tf.requestFocus();
+		}
 	}
 
 }
